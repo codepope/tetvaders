@@ -37,10 +37,12 @@ type Shape struct {
 	bmap    [][]bool
 	offxpos int
 	offypos int
+	height  int
+	width   int
 }
 
-func (s *Shape) initial(xpos int, ypos int) {
-	s.tettype = 0
+func (s *Shape) initial(ypos int, xpos int) {
+	s.tettype = rand.Intn(2)
 	s.xpos = xpos
 	s.ypos = ypos
 	switch s.tettype {
@@ -51,6 +53,23 @@ func (s *Shape) initial(xpos int, ypos int) {
 		s.bmap[2] = []bool{false, false, true, false, false}
 		s.offxpos = 2
 		s.offypos = 1
+		s.height = 3
+		s.width = 5
+	case 1:
+		s.bmap = make([][]bool, 3)
+		s.bmap[0] = []bool{true, true, true, true, true}
+		s.bmap[1] = []bool{true, false, false, false, false}
+		s.bmap[2] = []bool{true, false, false, false, false}
+		s.offxpos = 2
+		s.offypos = 1
+		s.height = 3
+		s.width = 5
+	}
+}
+
+func (s *Shape) move(w *World) {
+	if (s.ypos - s.offypos + s.height) < w.height {
+		s.ypos = s.ypos + 1
 	}
 }
 
@@ -101,7 +120,6 @@ func (w *World) init() {
 // Update game state by one tick.
 func (w *World) logicupdate() {
 	width := w.width
-	height := w.height
 
 	// Add a shape
 	w.dropbear = w.dropbear - 1
@@ -114,12 +132,8 @@ func (w *World) logicupdate() {
 
 	// Move all the shapes
 
-	for i, d := range w.dropping {
-		if d.ypos < height-1 {
-			w.dropping[i].ypos = d.ypos + 1
-		} else {
-			// On the floor
-		}
+	for i := range w.dropping {
+		w.dropping[i].move(w)
 	}
 
 	for i, b := range w.bullets {
@@ -150,7 +164,7 @@ func (s *Shape) draw(screen *ebiten.Image) {
 	for iy, c := range s.bmap {
 		for ix, p := range c {
 			if p {
-				screen.Set(s.xpos+ix, s.ypos+iy, color.White)
+				screen.Set(s.xpos-s.offxpos+ix, s.ypos-s.offypos+iy, color.White)
 			}
 		}
 	}
