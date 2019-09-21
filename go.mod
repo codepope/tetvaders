@@ -1,4 +1,4 @@
-module codepope.com/faller
+module codepope.com/tetvaders
 
 go 1.12
 

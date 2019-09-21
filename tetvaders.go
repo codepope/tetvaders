@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"math"
 	"math/rand"
 
 	"github.com/golang/freetype/truetype"
@@ -26,6 +27,7 @@ type World struct {
 	dropbear  int
 	dropstart int
 	dropping  []Shape
+	particles []Particle
 	bullets   []Bullet
 }
 
@@ -39,6 +41,7 @@ type Shape struct {
 	offypos int
 	height  int
 	width   int
+	destroy bool // Remove ASAP
 }
 
 func (s *Shape) initial(ypos int, xpos int) {
@@ -68,9 +71,23 @@ func (s *Shape) initial(ypos int, xpos int) {
 }
 
 func (s *Shape) move(w *World) {
+	if s.destroy {
+		return
+	}
+
 	if (s.ypos - s.offypos + s.height) < w.height {
 		s.ypos = s.ypos + 1
+		return
 	}
+
+	for i := 0; i < s.height; i = i + 1 {
+		for j := 0; j < s.width; j = j + 1 {
+			if s.bmap[i][j] {
+				w.particles = append(w.particles, Particle{xpos: s.xpos - s.offxpos + i, ypos: s.ypos - s.offypos + j, gravity: true, direction: 330 + rand.Float64()*60, velocity: 2})
+			}
+		}
+	}
+	s.destroy = true
 }
 
 var (
@@ -79,8 +96,12 @@ var (
 
 // Particle is a debris
 type Particle struct {
-	xpos int
-	ypos int
+	xpos      int
+	ypos      int
+	gravity   bool // Under gravity or propelled?
+	direction float64
+	velocity  float64
+	deleted   bool
 }
 
 // Bullet is bullet :)
@@ -115,6 +136,7 @@ func NewWorld(width, height int) *World {
 func (w *World) init() {
 	w.dropping = make([]Shape, 20)
 	w.bullets = make([]Bullet, 20)
+	w.particles = make([]Particle, 20)
 }
 
 // Update game state by one tick.
@@ -143,6 +165,30 @@ func (w *World) logicupdate() {
 			// Through the roof
 		}
 	}
+
+	for i := range w.particles {
+		sina := math.Sin(w.particles[i].direction) * w.particles[i].velocity
+		cosb := math.Cos(w.particles[i].direction) * w.particles[i].velocity
+		w.particles[i].xpos = int(float64(w.particles[i].xpos) + sina)
+		w.particles[i].ypos = int(float64(w.particles[i].ypos) + cosb)
+		if w.particles[i].gravity {
+			if w.particles[i].direction < 360 && w.particles[i].direction > 180 {
+				w.particles[i].direction = w.particles[i].direction - 1
+				if w.particles[i].direction < 0 {
+					w.particles[i].direction = 0
+				}
+			} else if w.particles[i].direction > 360 && w.particles[i].direction < 540 {
+				w.particles[i].direction = w.particles[i].direction + 1
+				if w.particles[i].direction > 540 {
+					w.particles[i].direction = 540
+				}
+			}
+		}
+		if w.particles[i].xpos < 0 || w.particles[i].xpos >= w.width || w.particles[i].ypos < 0 || w.particles[i].ypos >= w.height {
+			w.particles[i].deleted = true
+		}
+	}
+
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		if w.base.xpos > 10 {
 			w.base.xpos = w.base.xpos - 1
@@ -174,6 +220,13 @@ func (b *Bullet) draw(screen *ebiten.Image) {
 	screen.Set(b.xpos, b.ypos, color.White)
 }
 
+func (p *Particle) draw(screen *ebiten.Image) {
+	if p.deleted {
+		return
+	}
+	screen.Set(p.xpos, p.ypos, color.White)
+}
+
 func (b *Base) draw(screen *ebiten.Image) {
 	screen.Set(b.xpos-1, b.ypos, color.White)
 	screen.Set(b.xpos, b.ypos, color.White)
@@ -189,6 +242,11 @@ func (w *World) Draw(screen *ebiten.Image) {
 	for _, b := range w.bullets {
 		b.draw(screen)
 	}
+
+	for _, p := range w.particles {
+		p.draw(screen)
+	}
+
 	w.base.draw(screen)
 	load := fmt.Sprintf("Load:%d", w.base.load)
 	text.Draw(screen, load, smallArcadeFont, w.width-(len(load)*smallFontSize), smallFontSize, color.White)
