@@ -196,7 +196,7 @@ func (w *World) logicupdate() {
 
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		if w.base.xpos > 10 {
-			w.base.xpos = w.base.xpos - 1
+			w.base.xpos = w.base.xpos - 1.
 		}
 	} else if ebiten.IsKeyPressed(ebiten.KeyRight) {
 		if w.base.xpos < (w.width - 10) {
