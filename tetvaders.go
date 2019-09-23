@@ -71,10 +71,6 @@ func (s *Shape) initial(ypos int, xpos int) {
 }
 
 func (s *Shape) move(w *World) {
-	if s.destroy {
-		return
-	}
-
 	if (s.ypos - s.offypos + s.height) < w.height {
 		s.ypos = s.ypos + 1
 		return
@@ -83,10 +79,13 @@ func (s *Shape) move(w *World) {
 	for i := 0; i < s.height; i = i + 1 {
 		for j := 0; j < s.width; j = j + 1 {
 			if s.bmap[i][j] {
-				w.particles = append(w.particles, Particle{xpos: s.xpos - s.offxpos + i, ypos: s.ypos - s.offypos + j, gravity: true, direction: 330 + rand.Float64()*60, velocity: 2})
+				w.particles = append(w.particles,
+					Particle{xpos: float64(s.xpos) - float64(s.offxpos) + float64(i), ypos: float64(s.ypos) - float64(s.offypos) + float64(j),
+						gravity: true, direction: 330 + rand.Float64()*60, velocity: 1.0 + 2.0*rand.Float64()})
 			}
 		}
 	}
+
 	s.destroy = true
 }
 
@@ -96,8 +95,8 @@ var (
 
 // Particle is a debris
 type Particle struct {
-	xpos      int
-	ypos      int
+	xpos      float64
+	ypos      float64
 	gravity   bool // Under gravity or propelled?
 	direction float64
 	velocity  float64
@@ -158,6 +157,14 @@ func (w *World) logicupdate() {
 		w.dropping[i].move(w)
 	}
 
+	newdropping := make([]Shape, 20)
+	for _, s := range w.dropping {
+		if !s.destroy {
+			newdropping = append(newdropping, s)
+		}
+	}
+	w.dropping = newdropping
+
 	for i, b := range w.bullets {
 		if b.ypos > 0 {
 			w.bullets[i].ypos = b.ypos - 1
@@ -167,24 +174,22 @@ func (w *World) logicupdate() {
 	}
 
 	for i := range w.particles {
-		sina := math.Sin(w.particles[i].direction) * w.particles[i].velocity
-		cosb := math.Cos(w.particles[i].direction) * w.particles[i].velocity
-		w.particles[i].xpos = int(float64(w.particles[i].xpos) + sina)
-		w.particles[i].ypos = int(float64(w.particles[i].ypos) + cosb)
-		if w.particles[i].gravity {
-			if w.particles[i].direction < 360 && w.particles[i].direction > 180 {
-				w.particles[i].direction = w.particles[i].direction - 1
-				if w.particles[i].direction < 0 {
-					w.particles[i].direction = 0
-				}
-			} else if w.particles[i].direction > 360 && w.particles[i].direction < 540 {
-				w.particles[i].direction = w.particles[i].direction + 1
-				if w.particles[i].direction > 540 {
-					w.particles[i].direction = 540
-				}
-			}
-		}
-		if w.particles[i].xpos < 0 || w.particles[i].xpos >= w.width || w.particles[i].ypos < 0 || w.particles[i].ypos >= w.height {
+		w.particles[i].xpos = w.particles[i].xpos + math.Sin(w.particles[i].direction)*w.particles[i].velocity
+		w.particles[i].ypos = w.particles[i].ypos + math.Cos(w.particles[i].direction)*w.particles[i].velocity
+		// if w.particles[i].gravity {
+		// 	if w.particles[i].direction < 360 && w.particles[i].direction > 180 {
+		// 		w.particles[i].direction = w.particles[i].direction - 1
+		// 		if w.particles[i].direction < 0 {
+		// 			w.particles[i].direction = 0
+		// 		}
+		// 	} else if w.particles[i].direction > 360 && w.particles[i].direction < 540 {
+		// 		w.particles[i].direction = w.particles[i].direction + 1
+		// 		if w.particles[i].direction > 540 {
+		// 			w.particles[i].direction = 540
+		// 		}
+		// 	}
+		// }
+		if w.particles[i].xpos < 0 || w.particles[i].xpos >= float64(w.width) || w.particles[i].ypos < 0 || w.particles[i].ypos >= float64(w.height) {
 			w.particles[i].deleted = true
 		}
 	}
@@ -207,6 +212,7 @@ func (w *World) logicupdate() {
 }
 
 func (s *Shape) draw(screen *ebiten.Image) {
+	fmt.Printf("%+v\n", *s)
 	for iy, c := range s.bmap {
 		for ix, p := range c {
 			if p {
@@ -224,7 +230,7 @@ func (p *Particle) draw(screen *ebiten.Image) {
 	if p.deleted {
 		return
 	}
-	screen.Set(p.xpos, p.ypos, color.White)
+	screen.Set(int(p.xpos), int(p.ypos), color.White)
 }
 
 func (b *Base) draw(screen *ebiten.Image) {
