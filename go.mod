@@ -1,4 +1,4 @@
-module codepope.com/tetvaders
+module github.com/codepope/tetvaders
 
 go 1.12
 
